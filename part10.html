@@ -1,0 +1,329 @@
+<!doctype html>
+<html lang="fr">
+
+<head>
+  <meta charset="UTF-8" />
+  <title>Projet 2: Jeu en JS</title>
+  <script src="//cdn.jsdelivr.net/npm/phaser@3.11.0/dist/phaser.js"></script>
+  <style type="text/css">
+    body {
+      margin: 0;
+    }
+
+    p {
+      font-size: 1.5em;
+    }
+  </style>
+</head>
+
+<body>
+
+  <script type="text/javascript">
+    var config = {
+      type: Phaser.AUTO,
+      width: 800,
+      height: 600,
+      physics: {
+        default: 'arcade',
+        arcade: {
+          gravity: {
+            y: 400
+          },
+          debug: false
+        }
+      },
+      scene: {
+        preload: preload,
+        create: create,
+        update: update
+      }
+    };
+
+
+    // variables globales
+    var player;
+    var pieces;
+    var bombs;
+    var bombs2;
+    var platforms;
+    var tuy;
+    var cursors;
+    var score = 0;
+    var gameOver = false;
+    var scoreText;
+
+    var game = new Phaser.Game(config);
+
+    function preload() {
+      this.load.image('ciel', 'assets/ciel.png');
+      this.load.image('ground', 'assets/platform.png');
+      this.load.image('tuyeau', 'assets/block.png');
+      this.load.image('piece', 'assets/piece2.png');
+      this.load.image('bomb', 'assets/bomb.png', {
+        frameWidth: 32,
+        frameHeight: 48
+      });
+      this.load.image('bomb2', 'assets/bomb-fatal.png', {
+        frameWidth: 32,
+        frameHeight: 48
+      });
+      this.load.spritesheet('dude', 'assets/mario.png', {
+        frameWidth: 32,
+        frameHeight: 48
+      });
+
+    }
+
+    function create() {
+
+      //  image background
+      this.add.image(400, 300, 'ciel');
+
+      //  Création d'un nouveau groupe de physique statique assigné aux plates-formes et les carrés de briques
+      platforms = this.physics.add.staticGroup();
+      tuy = this.physics.add.staticGroup();
+      // mech = this.physics.add.staticGroup();
+
+
+      //  plates-formes du sol
+      platforms.create(400, 568, 'ground').setScale(2).refreshBody();
+
+      //  carre en briques, plates-formes
+      platforms.create(830, 400, 'ground');
+      platforms.create(50, 250, 'ground');
+      platforms.create(750, 220, 'ground');
+      tuy.create(700, 374, 'tuyeau');
+      tuy.create(700, 350, 'tuyeau');
+
+      tuy.create(360, 190, 'tuyeau');
+
+      tuy.create(330, 378, 'tuyeau');
+      tuy.create(355, 378, 'tuyeau');
+      tuy.create(375, 378, 'tuyeau');
+
+      tuy.create(502, 378, 'tuyeau');
+
+      tuy.create(200, 525, 'tuyeau');
+      tuy.create(560, 525, 'tuyeau');
+
+      tuy.create(200, 247, 'tuyeau');
+
+      // mech.create(460, 525, 'mechant');
+      // mech.create(200, 247, 'mechant');
+
+
+      // emplacement du joueur au début du jeu
+      player = this.physics.add.sprite(100, 350, 'dude');
+
+      //  quantité de saut du joueur au démarrage
+      player.setBounce(0.2);
+      // Si ce corps interagit avec la frontière du monde.
+      player.setCollideWorldBounds(true);
+
+      //  mouvements du joueurs
+      // mouvement gauche
+      this.anims.create({
+        key: 'left',
+        frames: this.anims.generateFrameNumbers('dude', {
+          start: 5,
+          end: 6
+        }),
+        frameRate: 10,
+        repeat: -1
+      });
+      // mouvement retourner
+      this.anims.create({
+        key: 'turn',
+        frames: [{
+          key: 'dude',
+          frame: 2
+        }],
+        frameRate: 20
+      });
+      // mouvement droit
+      this.anims.create({
+        key: 'right',
+        frames: this.anims.generateFrameNumbers('dude', {
+          start: 8,
+          end: 9
+        }),
+        frameRate: 10,
+        repeat: -1
+      });
+
+      //  gestionnaire de clavier de Phaser
+      cursors = this.input.keyboard.createCursorKeys();
+
+      //  quantité de pieces en répétitions, espacement entre elles
+      pieces = this.physics.add.group({
+        key: 'piece',
+        repeat: 11,
+        setXY: {
+          x: 12,
+          y: 0,
+          stepX: 70
+        }
+      });
+
+      // rebond des pieces
+      pieces.children.iterate(function(child) {
+
+        child.setBounceY(Phaser.Math.FloatBetween(0.4, 0.8));
+
+      });
+      //  Création groupe de bombes
+      bombs = this.physics.add.group();
+      bombs2 = this.physics.add.group();
+
+      //  Création du score, sa taille, sa position, sa couleur
+      scoreText = this.add.text(16, 16, 'score: 0', {
+        fontSize: '32px',
+        fill: '#000'
+      });
+
+      //  Vérification des collisions entre le joueur et les plates-formes
+      this.physics.add.collider(player, platforms);
+      //  Vérification des collisions entre les pieces et les plates-formes
+      this.physics.add.collider(pieces, platforms);
+      //  Vérification des collisions entre les bombes et les plates-formes
+      this.physics.add.collider(bombs, platforms);
+      this.physics.add.collider(bombs2, platforms);
+      //  Vérification des collisions entre le joueur et les plates-formes en briques
+      this.physics.add.collider(player, tuy);
+      //  Vérification des collisions entre les pieces et les plates-formes en briques
+      this.physics.add.collider(pieces, tuy);
+      //  Vérification des collisions entre les bombes et les plates-formes en briques
+      this.physics.add.collider(bombs, tuy);
+      this.physics.add.collider(bombs2, tuy);
+
+      //  Si le joueur chevauche une pièce, la fonction collectPiece est appelée
+      this.physics.add.overlap(player, pieces, collectPiece, null, this);
+      //  Si le joueur se fait toucher par une bombe, la fonction Normalbomb est appelée
+      this.physics.add.collider(player, bombs, Normalbomb, null, this);
+      //  Si le joueur se fait toucher par une bombe fatale (rouge), la fonction hitBomb est appelée
+      this.physics.add.collider(player, bombs2, hitBomb, null, this);
+
+
+    }
+
+    // interrogation du curseur
+    function update() {
+      if (gameOver) {
+        return;
+
+      }
+
+      if (cursors.left.isDown) {
+        player.setVelocityX(-160);
+
+        player.anims.play('left', true);
+      } else if (cursors.right.isDown) {
+        player.setVelocityX(160);
+
+        player.anims.play('right', true);
+      } else {
+        player.setVelocityX(0);
+
+        player.anims.play('turn');
+      }
+
+      if (cursors.up.isDown && player.body.touching.down) {
+        player.setVelocityY(-330);
+      }
+
+
+    }
+
+
+    function Normalbomb(player, bomb) {
+
+      if (score <= 0) {
+        //arrêt du jeu
+        this.physics.pause();
+        // joueur devient rouge
+        player.setTint(0xff0000);
+        alert("GAME OVER ! ");
+        if (confirm("Voulez-vous rejouer ?")) {
+          // Clic sur OK
+          document.location.reload(true);
+        }
+        //position du joueur
+        player.anims.play('turn');
+
+        gameOver = true;
+      } else {
+        //  modification du score une fois le joueur touché
+        score -= 20;
+        scoreText.setText('Score: ' + score);
+      }
+    }
+
+
+    // si le joueur chevauche une piece
+    function collectPiece(player, piece) {
+      // permet de supprimé l'affichage de la piece une fois touchée par le joueur
+      piece.disableBody(true, true);
+
+      //  modification du score à l'ajout d'une étoile au joueur
+      score += 10;
+      scoreText.setText('Score: ' + score);
+
+      // méthode qui permet de savoir le nombre pièces non ramassées
+      if (pieces.countActive(true) === 0) {
+        //  fonction qui réactive les pièces et réinitialise leurs position y à 0 => pièces retombent
+        pieces.children.iterate(function(child) {
+
+          child.enableBody(true, child.x, 0, true, true);
+
+        });
+
+        //position des bombes à l'opposé du joueur
+        var x = (player.x < 400) ? Phaser.Math.Between(400, 800) : Phaser.Math.Between(0, 400);
+        // création des bombes
+        var bomb = bombs.create(x, 16, 'bomb');
+        bomb.setBounce(1);
+        bomb.setCollideWorldBounds(true);
+        //vitesse aléatoire des bombes
+        bomb.setVelocity(Phaser.Math.Between(-200, 200), 20);
+        bomb.allowGravity = false;
+
+        var bomb2 = bombs2.create(x, 16, 'bomb2');
+        bomb2.setBounce(1);
+        bomb2.setCollideWorldBounds(true);
+        //vitesse aléatoire des bombes fatales
+        bomb2.setVelocity(Phaser.Math.Between(-200, 200), 20);
+        bomb2.allowGravity = false;
+
+      }
+    }
+
+    function hitBomb(player, bomb2) {
+      //arrêt du jeu
+      this.physics.pause();
+      // joueur devient rouge
+      player.setTint(0xff0000);
+      alert("GAME OVER ! ");
+      if (confirm("Voulez-vous rejouer ?")) {
+        // Clic sur OK
+        document.location.reload(true);
+      }
+      //position du joueur
+      player.anims.play('turn');
+
+      gameOver = true;
+    }
+  </script>
+
+
+  <form>
+    <input type="button" value="Rejouer" onClick="hitBomb()" hidden>
+  </form>
+
+  <div>
+    <p> Devoir réalisé par BELRHAZI Dina <br>
+      Rendu le 5/12/2019
+    </p>
+  </div>
+</body>
+
+</html>
